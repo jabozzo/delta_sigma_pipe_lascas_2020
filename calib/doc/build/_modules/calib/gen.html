@@ -1,0 +1,1549 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>calib.gen &#8212; calib 0.8 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for calib.gen</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+
+<span class="kn">import</span> <span class="nn">abc</span>
+<span class="kn">from</span> <span class="nn">itertools</span> <span class="k">import</span> <span class="n">islice</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="kn">import</span> <span class="nn">calib.data</span> <span class="k">as</span> <span class="nn">data</span>
+<span class="kn">from</span> <span class="nn">calib.misc</span> <span class="k">import</span> <span class="n">default</span><span class="p">,</span> <span class="n">store_random_state</span>
+
+
+<div class="viewcode-block" id="pipe_map"><a class="viewcode-back" href="../../gen.html#calib.gen.pipe_map">[docs]</a><span class="k">def</span> <span class="nf">pipe_map</span><span class="p">(</span><span class="n">n_caps</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">differential</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates the code-&gt;reference map for pipeline operation. Each column in this</span>
+<span class="sd">    map contains the reference index to be used for the feedfoward capacitors.</span>
+
+<span class="sd">    :param n_caps: Number of feedfoward capacitors with references,</span>
+<span class="sd">        usually the number of stage capacitors -1.</span>
+<span class="sd">    :type n_caps: :class:`int`</span>
+<span class="sd">    :param n_refs: Number of references per capacitor.</span>
+<span class="sd">    :type n_refs: :class:`int`</span>
+<span class="sd">    :param differential: Generate a differential or single-ended map.</span>
+<span class="sd">    :type differential: :class:`bool`</span>
+<span class="sd">    :returns: The map with shape :code:`(n_caps, n_codes, n_diff)`</span>
+<span class="sd">    :rtype: :class:`numpy.ndarray`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">n_caps</span> <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="p">(</span><span class="n">n_caps</span><span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="n">ii</span><span class="p">:</span><span class="n">ii</span><span class="o">+</span><span class="n">n_caps</span><span class="p">]</span> <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_caps</span><span class="p">)))</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">res</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="p">(</span><span class="nb">tuple</span><span class="p">(</span><span class="n">res</span> <span class="o">+</span> <span class="n">ii</span> <span class="k">for</span> <span class="n">ii</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_refs</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+        <span class="o">+</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="n">n_refs</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">n_caps</span><span class="p">,</span> <span class="p">(</span><span class="n">n_caps</span><span class="p">,</span> <span class="mi">1</span><span class="p">,)),)</span> <span class="p">)</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">differential</span><span class="p">:</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">res</span><span class="p">,</span> <span class="n">res</span><span class="p">[:,</span> <span class="p">::</span><span class="o">-</span><span class="mi">1</span><span class="p">],),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">res</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">res</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span>
+
+    <span class="k">return</span> <span class="n">res</span></div>
+
+
+<div class="viewcode-block" id="parse_bits"><a class="viewcode-back" href="../../gen.html#calib.gen.parse_bits">[docs]</a><span class="k">def</span> <span class="nf">parse_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Recieves either string, float or integer representations of a number of</span>
+<span class="sd">    bits and returns the int + bool respresentation.</span>
+
+<span class="sd">    :param n_bits: Number of bits</span>
+<span class="sd">    :type n_bits: :class:`str`, :class:`float`, :class:`int`</span>
+<span class="sd">    :param half_bit: If the representation is half bit or not.</span>
+<span class="sd">    :type half_bit: :class:`bool`</span>
+<span class="sd">    :returns: The int + bool representation of n_bits</span>
+<span class="sd">    :rtype: (:class:`int`, :class:`bool`,)</span>
+<span class="sd">    :raises ValueError: If the type of n_bits is not suported or n_bits and</span>
+<span class="sd">        half_bit conflict with each other (eg: &quot;2.5&quot; and False)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">n_bits</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_bits</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="n">n_bits</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">n_bits</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="n">int_bits</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">n_bits</span><span class="p">)</span>
+        <span class="n">c_half_bit</span> <span class="o">=</span> <span class="n">n_bits</span> <span class="o">!=</span> <span class="n">int_bits</span>
+
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">int_bits</span> <span class="o">=</span> <span class="n">n_bits</span>
+        <span class="n">c_half_bit</span> <span class="o">=</span> <span class="n">default</span><span class="p">(</span><span class="n">half_bit</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">half_bit</span> <span class="o">=</span> <span class="n">c_half_bit</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n_bits cannot be of type </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">n_bits</span><span class="p">)))</span>
+
+    <span class="n">half_bit</span> <span class="o">=</span> <span class="n">default</span><span class="p">(</span><span class="n">half_bit</span><span class="p">,</span> <span class="n">c_half_bit</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">half_bit</span> <span class="o">!=</span> <span class="n">c_half_bit</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">((</span><span class="s2">&quot;Inconsistent parameters &quot;</span>
+            <span class="s2">&quot;(n_bits: </span><span class="si">{}</span><span class="s2">, half_bit: </span><span class="si">{}</span><span class="s2">)&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">int_bits</span><span class="p">,</span> <span class="n">half_bit</span></div>
+
+
+<div class="viewcode-block" id="format_bits"><a class="viewcode-back" href="../../gen.html#calib.gen.format_bits">[docs]</a><span class="k">def</span> <span class="nf">format_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Converts from int + bool representation to str representation</span>
+
+<span class="sd">    :param n_bits: Number of bits</span>
+<span class="sd">    :type n_bits: :class:`str`, :class:`float`, :class:`int`</span>
+<span class="sd">    :param half_bit: If the representation is half bit or not.</span>
+<span class="sd">    :type half_bit: :class:`bool`</span>
+<span class="sd">    :returns: The str representation of n_bits</span>
+<span class="sd">    :rtype: :class:`str`</span>
+
+<span class="sd">    .. seealso :: :func:`parse_bits`, for n_bits and half_bit specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="k">return</span> <span class="s2">&quot;</span><span class="si">{}</span><span class="s2">.5&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_bits</span><span class="p">)</span> <span class="k">if</span> <span class="n">half_bit</span> <span class="k">else</span> <span class="n">n_bits</span></div>
+
+
+<div class="viewcode-block" id="compute_n_codes"><a class="viewcode-back" href="../../gen.html#calib.gen.compute_n_codes">[docs]</a><span class="k">def</span> <span class="nf">compute_n_codes</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the number of codes a pipeline stage can process.</span>
+
+<span class="sd">    :param n_bits: Number of bits of the stage</span>
+<span class="sd">    :type n_bits: :class:`str`, :class:`float`, :class:`int`</span>
+<span class="sd">    :param half_bit: If the number of bits is half-bit or not</span>
+<span class="sd">    :type half_bit: :class:`bool`</span>
+<span class="sd">    :returns: The number of codes the pipeline stage can handle</span>
+<span class="sd">    :rtype: :class:`int`</span>
+
+<span class="sd">    .. seealso :: :func:`parse_bits`, for n_bits and half_bit specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">half_bit</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">2</span><span class="o">**</span><span class="p">(</span><span class="n">n_bits</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="mi">2</span><span class="o">**</span><span class="n">n_bits</span></div>
+
+
+<div class="viewcode-block" id="compute_n_caps"><a class="viewcode-back" href="../../gen.html#calib.gen.compute_n_caps">[docs]</a><span class="k">def</span> <span class="nf">compute_n_caps</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the number of capacitors a stage needs to achieve the desired</span>
+<span class="sd">    resolution.</span>
+
+<span class="sd">    :param n_bits: Number of bits of the stage</span>
+<span class="sd">    :type n_bits: :class:`str`, :class:`float`, :class:`int`</span>
+<span class="sd">    :param n_refs: Number of references each feedfoward capacitor can use.</span>
+<span class="sd">    :type half_bit: :class:`int`</span>
+<span class="sd">    :param half_bit: If the number of bits is half-bit or not</span>
+<span class="sd">    :type half_bit: :class:`bool`</span>
+<span class="sd">    :returns: The number of capacitors the stage needs.</span>
+<span class="sd">    :rtype: :class:`int`</span>
+
+<span class="sd">    :raises AssertionError: If the number of references is invalid for the</span>
+<span class="sd">        number of bits.</span>
+
+<span class="sd">    .. seealso :: :func:`parse_bits`, for n_bits and half_bit specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="n">n_codes</span> <span class="o">=</span> <span class="n">compute_n_codes</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+
+    <span class="k">assert</span> <span class="n">n_refs</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;Need at least 2 references.&quot;</span>
+    <span class="k">assert</span> <span class="p">(</span><span class="n">n_codes</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="p">(</span><span class="n">n_refs</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="s2">&quot;Cannot match </span><span class="si">{}</span><span class="s2"> &quot;</span>
+        <span class="s2">&quot;refs with </span><span class="si">{}</span><span class="s2"> codes.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_refs</span><span class="p">,</span> <span class="n">n_codes</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="p">((</span><span class="n">n_codes</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="p">(</span><span class="n">n_refs</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">+</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="compute_lsb"><a class="viewcode-back" href="../../gen.html#calib.gen.compute_lsb">[docs]</a><span class="k">def</span> <span class="nf">compute_lsb</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">fsr_min</span><span class="p">,</span> <span class="n">fsr_max</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the least significant bit (LSB) magnitude in the stage MDAC and</span>
+<span class="sd">    sub-ADC to achieve a desired full scale range (FSR). The input FSR and</span>
+<span class="sd">    output FSR are assumed to be the same so only one value is returned.</span>
+
+<span class="sd">    :param n_bits: Number of bits of the stage</span>
+<span class="sd">    :type n_bits: :class:`str`, :class:`float`, :class:`int`</span>
+<span class="sd">    :param fsr_min: Minimum value of the full voltage scale</span>
+<span class="sd">    :type fsr_min: :class:`float`</span>
+<span class="sd">    :param fsr_min: Maximum value of the full voltage scale</span>
+<span class="sd">    :type fsr_min: :class:`float`</span>
+<span class="sd">    :param n_refs: Number of references each feedfoward capacitor can use.</span>
+<span class="sd">    :type n_refs: :class:`int`</span>
+<span class="sd">    :param half_bit: If the number of bits is half-bit or not</span>
+<span class="sd">    :type half_bit: :class:`bool`</span>
+<span class="sd">    :returns: The voltage value of the LSB.</span>
+<span class="sd">    :rtype: :class:`float`</span>
+
+<span class="sd">    .. seealso :: :func:`parse_bits`, for n_bits and half_bit specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="n">n_codes</span> <span class="o">=</span> <span class="n">compute_n_codes</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+
+    <span class="n">diff</span> <span class="o">=</span> <span class="n">fsr_max</span> <span class="o">-</span> <span class="n">fsr_min</span>
+
+    <span class="k">if</span> <span class="n">half_bit</span><span class="p">:</span>
+        <span class="n">lsb</span> <span class="o">=</span> <span class="n">diff</span><span class="o">/</span><span class="p">(</span><span class="n">n_codes</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">lsb</span> <span class="o">=</span> <span class="n">diff</span><span class="o">/</span><span class="n">n_codes</span>
+
+    <span class="k">return</span> <span class="n">lsb</span></div>
+
+
+<div class="viewcode-block" id="compute_ref"><a class="viewcode-back" href="../../gen.html#calib.gen.compute_ref">[docs]</a><span class="k">def</span> <span class="nf">compute_ref</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">fsr_min</span><span class="p">,</span> <span class="n">fsr_max</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the capacitor references votage for a pipeline stage.</span>
+
+<span class="sd">    :param n_bits: Number of bits of the stage</span>
+<span class="sd">    :type n_bits: :class:`str`, :class:`float`, :class:`int`</span>
+<span class="sd">    :param fsr_min: Minimum value of the full voltage scale</span>
+<span class="sd">    :type fsr_min: :class:`float`</span>
+<span class="sd">    :param fsr_min: Maximum value of the full voltage scale</span>
+<span class="sd">    :type fsr_min: :class:`float`</span>
+<span class="sd">    :param n_refs: Number of references each feedfoward capacitor can use.</span>
+<span class="sd">    :type n_refs: :class:`int`</span>
+<span class="sd">    :param half_bit: If the number of bits is half-bit or not</span>
+<span class="sd">    :type half_bit: :class:`bool`</span>
+<span class="sd">    :returns: The values of the feedfoward capacitor references.</span>
+<span class="sd">    :rtype: :class:`numpy.ndarray`</span>
+
+<span class="sd">    .. seealso :: :func:`parse_bits`, for n_bits and half_bit specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="n">lsb</span> <span class="o">=</span> <span class="n">compute_lsb</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">fsr_min</span><span class="p">,</span> <span class="n">fsr_max</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="n">range_2</span> <span class="o">=</span> <span class="p">(</span><span class="n">lsb</span><span class="o">*</span><span class="p">(</span><span class="n">n_refs</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span><span class="o">/</span><span class="mi">2</span>
+
+    <span class="n">avg</span> <span class="o">=</span> <span class="p">(</span><span class="n">fsr_max</span> <span class="o">+</span> <span class="n">fsr_min</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">range_2</span><span class="p">,</span> <span class="n">range_2</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">)</span> <span class="o">+</span> <span class="n">avg</span></div>
+
+
+<div class="viewcode-block" id="compute_thres"><a class="viewcode-back" href="../../gen.html#calib.gen.compute_thres">[docs]</a><span class="k">def</span> <span class="nf">compute_thres</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">fsr_min</span><span class="p">,</span> <span class="n">fsr_max</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the threshold voltages for a flash sub-ADC of a pipeline stage.</span>
+
+<span class="sd">    :param n_bits: Number of bits of the stage</span>
+<span class="sd">    :type n_bits: :class:`str`, :class:`float`, :class:`int`</span>
+<span class="sd">    :param fsr_min: Minimum value of the full voltage scale</span>
+<span class="sd">    :type fsr_min: :class:`float`</span>
+<span class="sd">    :param fsr_min: Maximum value of the full voltage scale</span>
+<span class="sd">    :type fsr_min: :class:`float`</span>
+<span class="sd">    :param n_refs: Number of references each feedfoward capacitor can use.</span>
+<span class="sd">    :type n_refs: :class:`int`</span>
+<span class="sd">    :param half_bit: If the number of bits is half-bit or not</span>
+<span class="sd">    :type half_bit: :class:`bool`</span>
+<span class="sd">    :returns: The values of the theshold voltages.</span>
+<span class="sd">    :rtype: :class:`numpy.ndarray`</span>
+
+<span class="sd">    .. seealso :: :func:`parse_bits`, for n_bits and half_bit specification.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="n">lsb</span> <span class="o">=</span> <span class="n">compute_lsb</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">fsr_min</span><span class="p">,</span> <span class="n">fsr_max</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="n">n_codes</span> <span class="o">=</span> <span class="n">compute_n_codes</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+    <span class="n">range_2</span> <span class="o">=</span> <span class="p">(</span><span class="n">lsb</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_codes</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span><span class="o">/</span><span class="mi">2</span>
+
+    <span class="n">avg</span> <span class="o">=</span> <span class="p">(</span><span class="n">fsr_max</span> <span class="o">+</span> <span class="n">fsr_min</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="k">if</span> <span class="n">n_codes</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="o">-</span><span class="n">range_2</span><span class="p">,</span> <span class="n">range_2</span><span class="p">,</span> <span class="n">n_codes</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">avg</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">avg</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span></div>
+
+
+<div class="viewcode-block" id="adjust_map"><a class="viewcode-back" href="../../gen.html#calib.gen.adjust_map">[docs]</a><span class="k">def</span> <span class="nf">adjust_map</span><span class="p">(</span><span class="n">map_</span><span class="p">,</span> <span class="n">n_codes</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Expands a pipeline map to work with an sub-ADC with the same or more codes</span>
+<span class="sd">    than the original sub-ADC.</span>
+
+<span class="sd">    :param map_: The pipeline map.</span>
+<span class="sd">    :type map_: :class:`numpy.ndarray`</span>
+<span class="sd">    :param n_codes: The number of codes the sub-ADC support.</span>
+<span class="sd">    :type n_codes: :class:`int`</span>
+<span class="sd">    :returns: The expanded pipeline map.</span>
+<span class="sd">    :rtype: :class:`numpy.ndarray`</span>
+<span class="sd">    :raises AssertionError: If the map is bigger than the target number of</span>
+<span class="sd">        codes.</span>
+
+<span class="sd">    .. seealso :: :func:`pipe_map`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">map_</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">n_codes</span><span class="p">,</span> <span class="s2">&quot;Map does not fit in number of codes&quot;</span>
+    <span class="n">margin</span> <span class="o">=</span> <span class="n">n_codes</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">map_</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">left</span> <span class="o">=</span> <span class="n">margin</span> <span class="o">//</span> <span class="mi">2</span>
+    <span class="n">right</span> <span class="o">=</span> <span class="n">margin</span> <span class="o">-</span> <span class="n">left</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">map_</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:],)</span><span class="o">*</span><span class="n">left</span> <span class="o">+</span> <span class="p">(</span><span class="n">map_</span><span class="p">,)</span> <span class="o">+</span> <span class="p">(</span><span class="n">map_</span><span class="p">[:,</span><span class="o">-</span><span class="mi">1</span><span class="p">:,</span> <span class="p">:],)</span><span class="o">*</span><span class="n">right</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="eff_random"><a class="viewcode-back" href="../../gen.html#calib.gen.eff_random">[docs]</a><span class="k">def</span> <span class="nf">eff_random</span><span class="p">(</span><span class="n">eff_mean</span><span class="p">,</span> <span class="n">tau_std</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates random number following a lognormal distribution, appropiate for</span>
+<span class="sd">    the charge efficiency transfer parameter (eff). The lognormal distribution</span>
+<span class="sd">    has mean in the mean parameter, but the standard deviation is computed by</span>
+<span class="sd">    proyecting the mean in logspace, generating a normal distribution with that</span>
+<span class="sd">    standard deviation and then exponeating again. This emulates the linear</span>
+<span class="sd">    settling time given by equation:</span>
+
+<span class="sd">    .. math ::</span>
+<span class="sd">        \\mathit{eff} = e^{\\frac{-1}{2 \\pi \\tau}}</span>
+
+<span class="sd">    :param eff_mean: Mean of the distribution. A factor between 0 and 1.</span>
+<span class="sd">    :type eff_mean: :class:`numpy.ndarray`</span>
+<span class="sd">    :param tau_std: Standard deviation in logspace, in time constants units.</span>
+<span class="sd">    :type tau_std: :class:`numpy.ndarray`</span>
+<span class="sd">    :returns: The random numbers following the lognormal distribution. The</span>
+<span class="sd">        shape is the shape of the mutual boradcast of eff_mean and tau_std.</span>
+<span class="sd">    :rtype: :class:`numpy.ndarray`</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">tau</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">eff_mean</span><span class="p">))</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="p">)</span>
+    <span class="n">tau</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">tau</span><span class="p">,</span> <span class="n">tau_std</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">pi</span><span class="o">*</span><span class="n">tau</span><span class="p">))</span></div>
+
+<span class="c1">## STAGE OBJECTS ##</span>
+
+
+<div class="viewcode-block" id="StageMeta"><a class="viewcode-back" href="../../gen.html#calib.gen.StageMeta">[docs]</a><span class="k">class</span> <span class="nc">StageMeta</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class holds the metadata for a pipeline stage. The metadata is</span>
+<span class="sd">    comprised of the design constraints that generate the ADC, these are:</span>
+<span class="sd">    number of bits, number of references per capacitor and full scale range</span>
+<span class="sd">    (FSR). The rest of the metadata is either deduced from that (LSB, number</span>
+<span class="sd">    of capacitors, ...) or is arbitrary (capacitor magnitude, charge transfer</span>
+<span class="sd">    efficiency, ...)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_refs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of references each capacitor can access.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_refs</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_caps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Total number of capacitors in the stage.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">compute_n_caps</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">half_bit</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_codes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of codes this stage handles (the sub-ADC and MDAC)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">compute_n_codes</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">half_bit</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_bits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Integer number of bits of this stage.</span>
+
+<span class="sd">        .. seealso :: :py:attr:`half_bit`, for information about</span>
+<span class="sd">            half-bit stages.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n_bits</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">half_bit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Boolean indicating if the stage is half_bit. If n_bits is N and</span>
+<span class="sd">        half_bit is True, then the stage is N-5 bits, otherwise is N bits.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_half_bit</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cap</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Ideal value of a capacitor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cap</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">eff</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Ideal of the charge transfer efficiency.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eff</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">seed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Seed for generating random stage instances.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">lsb</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Least significant bit (LSB) value, given the number of references per</span>
+<span class="sd">        capacitor, stage bits and FSR of this adc.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">compute_lsb</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bits</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">fsr</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">half_bit</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">differential</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        True if the stage have a differential architecture.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_differential</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">fsr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Full scale range (FSR). It&#39;s a tuple with the minimum and maximum</span>
+<span class="sd">        voltages the stage can handle without saturation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fsr</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">dct</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;n_bits&quot;</span><span class="p">),</span> <span class="n">dct</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;half_bit&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n_bits</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">dct</span><span class="p">)</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;half_bit&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">half_bit</span>
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_bits</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span>
+                <span class="n">eff</span><span class="o">=</span><span class="mf">0.995</span><span class="p">,</span> <span class="n">cap</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">fsr</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,),</span>
+                <span class="n">differential</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param n_bits: Number of bits</span>
+<span class="sd">        :type n_bits: :class:`str`, :class:`float`, :class:`int`</span>
+<span class="sd">        :param n_refs: Number of references per capacitor.</span>
+<span class="sd">        :type n_refs: :class:`int`</span>
+<span class="sd">        :param eff: Charge transfer efficiency.</span>
+<span class="sd">        :type eff: :class:`float`</span>
+<span class="sd">        :param cap: Capacitors&#39; capacitance.</span>
+<span class="sd">        :type cap: :class:`float`</span>
+<span class="sd">        :param fsr: Full scale range (FSR) limits.</span>
+<span class="sd">        :type fsr: (float, float,)</span>
+<span class="sd">        :param differential: If the stage architecture is differential.</span>
+<span class="sd">        :type differential: :class:`bool`</span>
+<span class="sd">        :type seed: The seed used for random instances generation.</span>
+<span class="sd">        :param seed: :class:`int`</span>
+<span class="sd">        :param half_bit: If the number of bits is half-bit or not</span>
+<span class="sd">        :type half_bit: :class:`bool`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">n_refs</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;Need at least 2 references.&quot;</span>
+        <span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span> <span class="o">=</span> <span class="n">parse_bits</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="n">half_bit</span><span class="p">)</span>
+
+        <span class="n">n_ref_half</span> <span class="o">=</span> <span class="n">n_refs</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">half_bit</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">n_ref_half</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Need odd n_refs for half bit, recieved </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_refs</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="ow">not</span> <span class="n">half_bit</span> <span class="ow">and</span> <span class="n">n_ref_half</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Need even n_refs for integer bit, recieved </span><span class="si">{}</span><span class="s2">.&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">n_refs</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_bits</span> <span class="o">=</span> <span class="n">n_bits</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n_refs</span> <span class="o">=</span> <span class="n">n_refs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_half_bit</span> <span class="o">=</span> <span class="n">half_bit</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="n">seed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_state</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_eff</span> <span class="o">=</span> <span class="n">eff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cap</span> <span class="o">=</span> <span class="n">cap</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fsr</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">fsr</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_differential</span> <span class="o">=</span> <span class="n">differential</span>
+
+        <span class="k">with</span> <span class="n">store_random_state</span><span class="p">()</span> <span class="k">as</span> <span class="n">_</span><span class="p">:</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">copy_attrs</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;n_refs&quot;</span><span class="p">,</span> <span class="s2">&quot;eff&quot;</span><span class="p">,</span> <span class="s2">&quot;cap&quot;</span><span class="p">,</span> <span class="s2">&quot;fsr&quot;</span><span class="p">,</span> <span class="s2">&quot;seed&quot;</span><span class="p">,</span> <span class="s2">&quot;differential&quot;</span><span class="p">,)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="n">attr</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">copy_attrs</span><span class="p">}</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;n_bits&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">format_bits</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_bits</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">half_bit</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">_ideal_values</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">n_bits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_bits</span>
+        <span class="n">half_bit</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">half_bit</span>
+
+        <span class="n">n_caps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_caps</span>
+        <span class="n">n_refs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_refs</span>
+        <span class="n">fsr</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fsr</span>
+
+        <span class="n">diff_mul</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">differential</span><span class="p">)</span>
+
+        <span class="n">eff</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">eff</span><span class="p">)</span>
+        <span class="n">caps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">cap</span><span class="p">]</span><span class="o">*</span><span class="n">n_caps</span><span class="o">*</span><span class="n">diff_mul</span><span class="p">,</span> <span class="p">(</span><span class="n">n_caps</span><span class="p">,</span> <span class="n">diff_mul</span><span class="p">))</span>
+        <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">n_caps</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">diff_mul</span><span class="p">,))</span>
+
+        <span class="n">ideal_ref</span> <span class="o">=</span> <span class="n">compute_ref</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="o">*</span><span class="n">fsr</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="n">half_bit</span><span class="p">)</span>
+        <span class="n">refs</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">ideal_ref</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">differential</span><span class="p">:</span>
+            <span class="n">refs</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">ideal_ref</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">thres</span> <span class="o">=</span> <span class="n">compute_thres</span><span class="p">(</span><span class="n">n_bits</span><span class="p">,</span> <span class="o">*</span><span class="n">fsr</span><span class="p">,</span> <span class="n">n_refs</span><span class="p">,</span> <span class="n">half_bit</span><span class="o">=</span><span class="n">half_bit</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">eff</span><span class="p">,</span> <span class="n">caps</span><span class="p">,</span> <span class="n">refs</span><span class="p">,</span> <span class="n">thres</span>
+
+<div class="viewcode-block" id="StageMeta.generate_ideal"><a class="viewcode-back" href="../../gen.html#calib.gen.StageMeta.generate_ideal">[docs]</a>    <span class="k">def</span> <span class="nf">generate_ideal</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instances an ideal stage.</span>
+
+<span class="sd">        :returns: An ideal stage instance based on this metadata.</span>
+<span class="sd">        :rtype: :class:`StageParameters`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">StageParameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">_ideal_values</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="StageMeta.generate_gaussian"><a class="viewcode-back" href="../../gen.html#calib.gen.StageMeta.generate_gaussian">[docs]</a>    <span class="k">def</span> <span class="nf">generate_gaussian</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s_eff</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">s_cap</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">s_refs</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">s_thres</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Instances a variation of the stage, with mostly gaussian perturbations.</span>
+
+<span class="sd">        :param s_eff: Standard deviation of the charge transfer efficiency. The</span>
+<span class="sd">            standard deviation is expressed in time constants as explained in</span>
+<span class="sd">            :func:`eff_random`.</span>
+<span class="sd">        :type s_eff: :class:`numpy.array`</span>
+<span class="sd">        :param s_cap: Standard deviation of capacitors, in farads.</span>
+<span class="sd">        :type s_cap: :class:`numpy.array`</span>
+<span class="sd">        :param s_refs: Standard deviation of references, in volts.</span>
+<span class="sd">        :type s_refs: :class:`numpy.array`</span>
+<span class="sd">        :param s_thres: Standard deviation of sub-ADC thresholds, in volts.</span>
+<span class="sd">        :type s_thres: :class:`numpy.array`</span>
+
+<span class="sd">        :returns: An ideal stage instance based on this metadata</span>
+<span class="sd">        :rtype: :class:`StageParameters`</span>
+
+<span class="sd">        .. seealso :: :func:`eff_random`, for information about the random</span>
+<span class="sd">            distribution of the charge transfer efficiency parameter.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">eff</span><span class="p">,</span> <span class="n">caps</span><span class="p">,</span> <span class="n">refs</span><span class="p">,</span> <span class="n">thres</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ideal_values</span><span class="p">()</span>
+
+        <span class="k">def</span> <span class="nf">fill_shape</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">arr</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">s</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">s</span> <span class="o">==</span> <span class="n">t</span> <span class="k">for</span> <span class="n">s</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">target</span><span class="p">)),</span> <span class="p">(</span>
+                <span class="s2">&quot;Shape </span><span class="si">{}</span><span class="s2"> cannot be extended to target </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">target</span><span class="p">))</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">arr</span><span class="p">,</span> <span class="n">shape</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span><span class="o">*</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">shape</span><span class="p">)))</span>
+            <span class="k">return</span> <span class="n">arr</span>
+
+        <span class="n">s_eff</span> <span class="o">=</span> <span class="n">fill_shape</span><span class="p">(</span><span class="n">s_eff</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">eff</span><span class="p">))</span>
+        <span class="n">s_cap</span> <span class="o">=</span> <span class="n">fill_shape</span><span class="p">(</span><span class="n">s_cap</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">caps</span><span class="p">))</span>
+        <span class="n">s_refs</span> <span class="o">=</span> <span class="n">fill_shape</span><span class="p">(</span><span class="n">s_refs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">refs</span><span class="p">))</span>
+        <span class="n">s_thres</span> <span class="o">=</span> <span class="n">fill_shape</span><span class="p">(</span><span class="n">s_thres</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">thres</span><span class="p">))</span>
+
+        <span class="k">with</span> <span class="n">store_random_state</span><span class="p">():</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">set_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_random_state</span><span class="p">)</span>
+
+            <span class="n">eff</span> <span class="o">=</span> <span class="n">eff_random</span><span class="p">(</span><span class="n">eff</span><span class="p">,</span> <span class="n">s_eff</span><span class="p">)</span>
+            <span class="n">caps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">caps</span><span class="p">,</span> <span class="n">s_cap</span><span class="p">)</span>
+            <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">refs</span><span class="p">,</span> <span class="n">s_refs</span><span class="p">)</span>
+            <span class="n">thres</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">thres</span><span class="p">,</span> <span class="n">s_thres</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">StageParameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eff</span><span class="p">,</span> <span class="n">caps</span><span class="p">,</span> <span class="n">refs</span><span class="p">,</span> <span class="n">thres</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">StageMeta</span><span class="p">):</span>
+            <span class="n">to_compare</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;n_bits&quot;</span><span class="p">,</span> <span class="s2">&quot;half_bit&quot;</span><span class="p">,</span> <span class="s2">&quot;n_refs&quot;</span><span class="p">,</span> <span class="s2">&quot;seed&quot;</span><span class="p">,</span> <span class="s2">&quot;eff&quot;</span><span class="p">,</span> <span class="s2">&quot;cap&quot;</span><span class="p">,</span> <span class="s2">&quot;fsr&quot;</span><span class="p">,</span> <span class="s2">&quot;differential&quot;</span><span class="p">,)</span>
+            <span class="n">eq</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="o">==</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">to_compare</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">eq</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">NotImplemented</span></div>
+
+
+<div class="viewcode-block" id="StageParameters"><a class="viewcode-back" href="../../gen.html#calib.gen.StageParameters">[docs]</a><span class="k">class</span> <span class="nc">StageParameters</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class holds the instanced data for a stage. The interpretation of this</span>
+<span class="sd">    class is double. If interpreted as a pipeline stage, the thresholds</span>
+<span class="sd">    represent the sub-ADC of this stage. It can be also used to represent a</span>
+<span class="sd">    delta-sigma loop, with thresholds representing the sub-ADC of the next</span>
+<span class="sd">    stage or the last sub-ADC in a pipeline converter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">meta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The metadata of this stage.</span>
+
+<span class="sd">        :type: :class:`StageMeta`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">eff</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The charge transfer efficiency parameter.</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_eff</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">caps</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The capacitors value, in farads.</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">refs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The references value for each capacitor, in volts.</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refs</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">thres</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The threshold values, in volts. Depending on the interpretation, those</span>
+<span class="sd">        are associated with the stage sub-ADC (pipeline) or the next stage</span>
+<span class="sd">        sub-ADC (delta-sigma).</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thres</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+
+        <span class="n">arr_attr</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;eff&quot;</span><span class="p">,</span> <span class="s2">&quot;caps&quot;</span><span class="p">,</span> <span class="s2">&quot;refs&quot;</span><span class="p">,</span> <span class="s2">&quot;thres&quot;</span><span class="p">,)</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">StageMeta</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;meta&quot;</span><span class="p">])</span>
+
+        <span class="n">args</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">meta</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">NumpyData</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="n">key</span><span class="p">])</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">arr_attr</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">eff</span><span class="p">,</span> <span class="n">caps</span><span class="p">,</span> <span class="n">refs</span><span class="p">,</span> <span class="n">thres</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span> <span class="o">=</span> <span class="n">meta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_eff</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_ndarray</span><span class="p">(</span><span class="n">eff</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_caps</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_ndarray</span><span class="p">(</span><span class="n">caps</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refs</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_ndarray</span><span class="p">(</span><span class="n">refs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thres</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_ndarray</span><span class="p">(</span><span class="n">thres</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">arr_attr</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;eff&quot;</span><span class="p">,</span> <span class="s2">&quot;caps&quot;</span><span class="p">,</span> <span class="s2">&quot;refs&quot;</span><span class="p">,</span> <span class="s2">&quot;thres&quot;</span><span class="p">,)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="n">attr</span><span class="p">:</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_numpydata</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">arr_attr</span><span class="p">}</span>
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">meta</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">StageParameters</span><span class="p">):</span>
+            <span class="n">to_compare</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;eff&quot;</span><span class="p">,</span> <span class="s2">&quot;caps&quot;</span><span class="p">,</span> <span class="s2">&quot;refs&quot;</span><span class="p">,</span> <span class="s2">&quot;thres&quot;</span><span class="p">,)</span>
+            <span class="n">eq</span> <span class="o">=</span> <span class="nb">all</span><span class="p">((</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)</span> <span class="o">==</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">other</span><span class="p">,</span> <span class="n">attr</span><span class="p">))</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="n">to_compare</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">eq</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">NotImplemented</span></div>
+
+
+<div class="viewcode-block" id="PipeParameters"><a class="viewcode-back" href="../../gen.html#calib.gen.PipeParameters">[docs]</a><span class="k">class</span> <span class="nc">PipeParameters</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    This class just holds multiple stages together and the thresholds of the</span>
+<span class="sd">    final sub-ADC that converts the last stage residual.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">stages</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The stages that make this adc.</span>
+
+<span class="sd">        :type: :class:`data.tuple_of(StageParameters)`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">tail</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The thresholds of the final sub-ADC that converts the last stage&#39;s</span>
+<span class="sd">        residual.</span>
+
+<span class="sd">        :type: :class:`numpy.array`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tail</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+
+        <span class="n">stages</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">StageParameters</span><span class="p">)</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;stages&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">tail</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">NumpyData</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;tail&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">)</span>
+
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tail</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stages</span><span class="p">,</span> <span class="n">tail</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">StageParameters</span><span class="p">)</span><span class="o">.</span><span class="n">EnsureIsInstance</span><span class="p">(</span><span class="n">stages</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_tail</span> <span class="o">=</span> <span class="n">tail</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">stages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stages</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">tail</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_numpydata</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_tail</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+
+        <span class="n">dct</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_to_json_dict</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;stages&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">stages</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;tail&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tail</span>
+
+        <span class="k">return</span> <span class="n">dct</span>
+
+<div class="viewcode-block" id="PipeParameters.as_delta_sigma"><a class="viewcode-back" href="../../gen.html#calib.gen.PipeParameters.as_delta_sigma">[docs]</a>    <span class="k">def</span> <span class="nf">as_delta_sigma</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Returns the stages with the thresholds associated with the following</span>
+<span class="sd">        stage.</span>
+
+<span class="sd">        :returns: A list with the delta-sigma representation of each stage.</span>
+<span class="sd">        :rtype: :class:`list`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">thres</span> <span class="o">=</span> <span class="p">[</span><span class="n">ss</span><span class="o">.</span><span class="n">thres</span> <span class="k">for</span> <span class="n">ss</span> <span class="ow">in</span> <span class="n">islice</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="kc">None</span><span class="p">)]</span> <span class="o">+</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tail</span><span class="p">]</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">StageParameters</span><span class="p">(</span><span class="n">ss</span><span class="o">.</span><span class="n">meta</span><span class="p">,</span> <span class="n">ss</span><span class="o">.</span><span class="n">eff</span><span class="p">,</span> <span class="n">ss</span><span class="o">.</span><span class="n">caps</span><span class="p">,</span> <span class="n">ss</span><span class="o">.</span><span class="n">refs</span><span class="p">,</span> <span class="n">tt</span><span class="p">)</span> <span class="k">for</span> <span class="n">ss</span><span class="p">,</span> <span class="n">tt</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stages</span><span class="p">,</span> <span class="n">thres</span><span class="p">)]</span></div></div>
+
+
+<span class="c1">## IC OBJECT ##</span>
+
+
+<div class="viewcode-block" id="InitialCondition"><a class="viewcode-back" href="../../gen.html#calib.gen.InitialCondition">[docs]</a><span class="k">class</span> <span class="nc">InitialCondition</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Holds the information about the pre-charging of the delta-sigma loop before</span>
+<span class="sd">    operation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">StageMeta</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;meta&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">))</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">NumpyData</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;ref_ii&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+<div class="viewcode-block" id="InitialCondition.Discharged"><a class="viewcode-back" href="../../gen.html#calib.gen.InitialCondition.Discharged">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">Discharged</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">n_cf</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a discharged initial condition.</span>
+
+<span class="sd">        :param meta: Delta-sigma metadata</span>
+<span class="sd">        :type meta: :class:`StageMeta`</span>
+<span class="sd">        :param n_cf: Number of feedback capacitors</span>
+<span class="sd">        :type n_cf: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_diff</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">differential</span><span class="p">)</span>
+        <span class="n">ref_ii</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">n_cf</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">ref_ii</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">ref_ii</span><span class="p">,)</span><span class="o">*</span><span class="n">n_diff</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">ref_ii</span><span class="p">)</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ref_ii</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Indexes of the references to precharge. The output shape is</span>
+<span class="sd">        (n_cf, n_diff,). Index -1 to not use that capacitor.</span>
+
+<span class="sd">        :type: :class:`numpy.array`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ref_ii</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_cf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of feedback capacitors.</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ref_ii</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">meta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delta-sigma metadata</span>
+
+<span class="sd">        :type: :class:`StageMeta`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">ref_ii</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">ref_ii</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">meta</span><span class="o">.</span><span class="n">differential</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span> <span class="o">=</span> <span class="n">meta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ref_ii</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_ndarray</span><span class="p">(</span><span class="n">ref_ii</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">dct</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_to_json_dict</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;meta&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;ref_ii&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_numpydata</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_ref_ii</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dct</span></div>
+
+
+<span class="c1">## INPUT OBJECTS ##</span>
+
+
+<div class="viewcode-block" id="InputGenerator"><a class="viewcode-back" href="../../gen.html#calib.gen.InputGenerator">[docs]</a><span class="k">class</span> <span class="nc">InputGenerator</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Abstract class for generating the indexes of the input signals.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="InputGenerator.register"><a class="viewcode-back" href="../../gen.html#calib.gen.InputGenerator.register">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">register</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">class_</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Register a sub-class to the json tag system.</span>
+
+<span class="sd">        .. seealso :: :func:`_JsonDictToArgs` for information about the json</span>
+<span class="sd">            tag system.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_registered</span><span class="p">[</span><span class="n">class_</span><span class="o">.</span><span class="n">tag</span><span class="p">()]</span> <span class="o">=</span> <span class="n">class_</span></div>
+
+<div class="viewcode-block" id="InputGenerator.tag"><a class="viewcode-back" href="../../gen.html#calib.gen.InputGenerator.tag">[docs]</a>    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractclassmethod</span>
+    <span class="k">def</span> <span class="nf">tag</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Tag of the sub-class to be used when reading / writing json.</span>
+
+<span class="sd">        .. seealso :: :func:`_to_json_dict` for information about the json</span>
+<span class="sd">            tag system.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+    <span class="nd">@property</span>
+    <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+    <span class="k">def</span> <span class="nf">n_cs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of feedfoward capacitors.</span>
+
+<span class="sd">        .. seealso :: :func:`_to_json_dict` for information about the json</span>
+<span class="sd">            tag system.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">meta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delta-sigma metadata</span>
+
+<span class="sd">        :type: :class:`StageMeta`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Reads a dictionary and parses it into constructor positional and</span>
+<span class="sd">        keyword arguments.</span>
+
+<span class="sd">        Sub-classes of this class have to read the &#39;data&#39; entry of</span>
+<span class="sd">        this dictionary instead of the root dictionary when implementing either</span>
+<span class="sd">        :func:`_to_json_dict` or :func:`_JsonDictToArgs`.</span>
+
+<span class="sd">        :param data_location: Location where the dictionary has been read.</span>
+<span class="sd">        :type data_location: :class:`data.DataLocation`</span>
+<span class="sd">        :param dct: A dictionary representation of the instance.</span>
+<span class="sd">        :type dct: :class:`dict`</span>
+<span class="sd">        :param cache: For detecting already loaded files, same as memo for</span>
+<span class="sd">            :func:`copy.deepcopy`.</span>
+<span class="sd">        :type cache: :class:`dict`</span>
+<span class="sd">        :returns: The arguments and keyword arguments needed or ready to be</span>
+<span class="sd">            further populated to instance an :class:`InputGenerator`.</span>
+<span class="sd">        :rtype: (:class:`list`, :class:`dict`)</span>
+
+<span class="sd">        .. seealso :: :func:`_to_json_dict`, for information about the</span>
+<span class="sd">            modifications on the usual :class:`data.JsonData` interface.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span><span class="p">(</span><span class="bp">cls</span> <span class="ow">is</span> <span class="n">InitialCondition</span><span class="p">):</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;tag&#39;</span><span class="p">]</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">registered</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="n">cache</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span> <span class="o">=</span> <span class="n">meta</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dump the instance information to a json dictionary. This method breaks</span>
+<span class="sd">        the :class:`data.JsonData` interface, since the instance information is</span>
+<span class="sd">        nested in the entry &#39;data&#39; of another dictionary. This root dictionary</span>
+<span class="sd">        contains also the &#39;tag&#39; entry. This entry enables this class to select</span>
+<span class="sd">        which of the registered sub-class to load when the dictionary is then</span>
+<span class="sd">        loaded.</span>
+
+<span class="sd">        Sub-classes of this class have to populate and read the &#39;data&#39; entry of</span>
+<span class="sd">        this dictionary instead of the root dictionary when implementing either</span>
+<span class="sd">        :func:`_to_json_dict` or :func:`_JsonDictToArgs`.</span>
+
+<span class="sd">        :param path_context: Path from where the save operation is being</span>
+<span class="sd">            invoked.</span>
+<span class="sd">        :type path_context: :class:`data.PathContext`</span>
+<span class="sd">        :returns: A dictionary representation of the instance.</span>
+<span class="sd">        :rtype: :class:`dict`</span>
+
+<span class="sd">        .. seealso :: :func:`_JsonDictToArgs`, the complementary operation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;tag&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tag</span><span class="p">(),</span> <span class="s1">&#39;data&#39;</span><span class="p">:</span>
+            <span class="p">{</span><span class="s1">&#39;meta&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)}}</span>
+
+    <span class="c1"># Returns refs, ins</span>
+    <span class="c1"># shape of ref: (n_samples, n_cs)</span>
+    <span class="c1"># shape of in: (n_samples, n_cs)</span>
+<div class="viewcode-block" id="InputGenerator.generate_in"><a class="viewcode-back" href="../../gen.html#calib.gen.InputGenerator.generate_in">[docs]</a>    <span class="k">def</span> <span class="nf">generate_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">start_sample</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the indexes of either the references or input values to charge the</span>
+<span class="sd">        feedfoward capacitors on :math:`\\phi_0.`</span>
+
+<span class="sd">        :param n_samples: Number of clock cycles to generate.</span>
+<span class="sd">        :type n_samples: :class:`int`</span>
+<span class="sd">        :param n_samples: Number of clock cycles to skip before generation.</span>
+<span class="sd">        :type n_samples: :class:`int`</span>
+<span class="sd">        :returns: The indexes of references and inputs, in that order. The</span>
+<span class="sd">            shape of both outputs is (n_samples, n_cs,)</span>
+<span class="sd">        :rtype: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">pass</span></div></div>
+
+
+<span class="n">InputGenerator</span><span class="o">.</span><span class="n">_registered</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="ExternalDC"><a class="viewcode-back" href="../../gen.html#calib.gen.ExternalDC">[docs]</a><span class="k">class</span> <span class="nc">ExternalDC</span><span class="p">(</span><span class="n">InputGenerator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate a constant input from the pipeline input pin.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ExternalDC.tag"><a class="viewcode-back" href="../../gen.html#calib.gen.ExternalDC.tag">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tag</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;external-dc&quot;</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_cs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ins_ii</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ins_ii</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Index of the external input.</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ins_ii</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">ins_ii</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">data_location</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">ins_ii</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="k">assert</span> <span class="p">(</span><span class="n">ins_ii</span> <span class="o">==</span> <span class="n">ins_ii</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">all</span><span class="p">(),</span> <span class="p">(</span><span class="s2">&quot;Different inputs for &quot;</span>
+            <span class="s2">&quot;different capacitors is not possible by architecture.&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ins_ii</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_ndarray</span><span class="p">(</span><span class="n">ins_ii</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">ins_ii</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">NumpyData</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="s1">&#39;ins_ii&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ins_ii</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">dct</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_to_json_dict</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">ins_ii</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_numpydata</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ins_ii</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="s1">&#39;ins_ii&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ins_ii</span>
+        <span class="k">return</span> <span class="n">dct</span>
+
+<div class="viewcode-block" id="ExternalDC.generate_in"><a class="viewcode-back" href="../../gen.html#calib.gen.ExternalDC.generate_in">[docs]</a>    <span class="k">def</span> <span class="nf">generate_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">start_sample</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_cs</span><span class="p">,)</span>
+        <span class="n">full_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_cs</span><span class="p">,)</span>
+
+        <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_cs</span><span class="p">,</span> <span class="n">shape</span><span class="p">),</span> <span class="n">full_shape</span><span class="p">)</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ins_ii</span><span class="p">,</span> <span class="n">shape</span><span class="p">),</span> <span class="n">full_shape</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">refs</span><span class="p">,</span> <span class="n">ins</span></div></div>
+
+
+<span class="n">InputGenerator</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">ExternalDC</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="InternalDC"><a class="viewcode-back" href="../../gen.html#calib.gen.InternalDC">[docs]</a><span class="k">class</span> <span class="nc">InternalDC</span><span class="p">(</span><span class="n">InputGenerator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate a constant input from the references of the feedfoward capacitors.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="InternalDC.tag"><a class="viewcode-back" href="../../gen.html#calib.gen.InternalDC.tag">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tag</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;internal-dc&quot;</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_cs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refs_ii</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">refs_ii</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Index of the internal references.</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_refs_ii</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">refs_ii</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">data_location</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">refs_ii</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_refs_ii</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_ndarray</span><span class="p">(</span><span class="n">refs_ii</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">refs_ii</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">NumpyData</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="s1">&#39;refs_ii&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">refs_ii</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">dct</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_to_json_dict</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">refs_ii</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_numpydata</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refs_ii</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">][</span><span class="s1">&#39;refs_ii&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">refs_ii</span>
+        <span class="k">return</span> <span class="n">dct</span>
+
+<div class="viewcode-block" id="InternalDC.generate_in"><a class="viewcode-back" href="../../gen.html#calib.gen.InternalDC.generate_in">[docs]</a>    <span class="k">def</span> <span class="nf">generate_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">start_sample</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_cs</span><span class="p">,)</span>
+        <span class="n">full_shape</span> <span class="o">=</span> <span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_cs</span><span class="p">,)</span>
+
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_cs</span><span class="p">,</span> <span class="n">shape</span><span class="p">),</span> <span class="n">full_shape</span><span class="p">)</span>
+        <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">refs_ii</span><span class="p">,</span> <span class="n">shape</span><span class="p">),</span> <span class="n">full_shape</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">refs</span><span class="p">,</span> <span class="n">ins</span></div></div>
+
+
+<span class="n">InputGenerator</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">InternalDC</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ACCombinator"><a class="viewcode-back" href="../../gen.html#calib.gen.ACCombinator">[docs]</a><span class="k">class</span> <span class="nc">ACCombinator</span><span class="p">(</span><span class="n">InputGenerator</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Switches between two inputs generators, alternating them in a periodic way.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="ACCombinator.tag"><a class="viewcode-back" href="../../gen.html#calib.gen.ACCombinator.tag">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">tag</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">&quot;ac-combinator&quot;</span></div>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_cs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">n_cs</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">top</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        First input generator to select in the periodic switching.</span>
+
+<span class="sd">        :type: :class:`InputGenerator`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_top</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">bot</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Second input generator to select in the periodic switching.</span>
+
+<span class="sd">        :type: :class:`InputGenerator`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bot</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">period</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Switching period.</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_period</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">top</span><span class="p">,</span> <span class="n">bot</span><span class="p">,</span> <span class="n">period</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">period</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;Period must be greater than 0&quot;</span>
+        <span class="k">assert</span> <span class="n">top</span><span class="o">.</span><span class="n">n_cs</span> <span class="o">==</span> <span class="n">bot</span><span class="o">.</span><span class="n">n_cs</span><span class="p">,</span> <span class="s2">&quot;Top and bottom generators&#39; n_cs must be the same.&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_top</span> <span class="o">=</span> <span class="n">top</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_bot</span> <span class="o">=</span> <span class="n">bot</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_period</span> <span class="o">=</span> <span class="n">period</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+
+        <span class="n">top</span> <span class="o">=</span> <span class="n">InputGenerator</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">][</span><span class="s2">&quot;top&quot;</span><span class="p">],</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">bottom</span> <span class="o">=</span> <span class="n">InputGenerator</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">][</span><span class="s2">&quot;bottom&quot;</span><span class="p">],</span> <span class="n">cache</span><span class="p">)</span>
+
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">top</span><span class="p">)</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bottom</span><span class="p">)</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dct</span><span class="p">[</span><span class="s2">&quot;data&quot;</span><span class="p">][</span><span class="s2">&quot;period&quot;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">dct</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_to_json_dict</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;data&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">({</span>
+            <span class="s1">&#39;top&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">),</span>
+            <span class="s1">&#39;bot&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bot</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">),</span>
+            <span class="s1">&#39;period&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span> <span class="p">})</span>
+        <span class="k">return</span> <span class="n">dct</span>
+
+<div class="viewcode-block" id="ACCombinator.generate_in"><a class="viewcode-back" href="../../gen.html#calib.gen.ACCombinator.generate_in">[docs]</a>    <span class="k">def</span> <span class="nf">generate_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">start_sample</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="n">r_top</span><span class="p">,</span> <span class="n">i_top</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">top</span><span class="o">.</span><span class="n">generate_in</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">start_sample</span><span class="p">)</span>
+        <span class="n">r_bot</span><span class="p">,</span> <span class="n">i_bot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bot</span><span class="o">.</span><span class="n">generate_in</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">start_sample</span><span class="p">)</span>
+
+        <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">r_top</span><span class="p">)</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">i_top</span><span class="p">)</span>
+
+        <span class="n">refs</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">ins</span><span class="p">[</span><span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">period</span>
+
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">start_sample</span><span class="p">,</span> <span class="n">n_samples</span> <span class="o">+</span> <span class="n">start_sample</span><span class="p">)</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">mask</span> <span class="o">%</span> <span class="n">p</span> <span class="o">&lt;</span> <span class="n">p</span><span class="o">//</span><span class="mi">2</span>
+
+        <span class="n">refs</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">r_top</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+        <span class="n">ins</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">i_top</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">logical_not</span><span class="p">(</span><span class="n">mask</span><span class="p">)</span>
+
+        <span class="n">refs</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">r_bot</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+        <span class="n">ins</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="n">i_bot</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">refs</span><span class="p">,</span> <span class="n">ins</span></div></div>
+
+
+<span class="n">InputGenerator</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">ACCombinator</span><span class="p">)</span>
+
+
+<span class="c1">## CONFIGURATION OBJECT ##</span>
+
+
+<div class="viewcode-block" id="Configuration"><a class="viewcode-back" href="../../gen.html#calib.gen.Configuration">[docs]</a><span class="k">class</span> <span class="nc">Configuration</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Specifies a particular feedback and feedfoward capacitor selection.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_cs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of feedfoward capacitors.</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cs</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_cf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of feedback capacitors.</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">n_caps</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_cs</span>
+
+    <span class="c1"># shape (n_cs, n_diff,)</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Indexes of the feedfoward capacitors. The output shape is</span>
+<span class="sd">            (n_cs, n_diff,).</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cs</span>
+
+    <span class="c1"># shape (n_cf, n_diff,)</span>
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Indexes of the feedback capacitors. The output shape is</span>
+<span class="sd">            (n_cf, n_diff,).</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">all_caps</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">n_caps</span><span class="p">))</span>
+        <span class="n">cf</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">cs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cs</span>
+        <span class="k">for</span> <span class="n">diff</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">cs</span><span class="p">,</span> <span class="mi">1</span><span class="p">)):</span>
+            <span class="n">diff</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">all_caps</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">cs</span><span class="p">[:,</span> <span class="n">diff</span><span class="p">])))</span>
+
+        <span class="n">cf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">cf</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,))</span>
+        <span class="k">return</span> <span class="n">cf</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">meta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delta-sigma metadata</span>
+
+<span class="sd">        :type: :class:`StageMeta`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">meta</span><span class="p">,</span> <span class="n">cs</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">cs</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">cs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">cs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">cs</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,))</span>
+
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">cs</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">differential</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span> <span class="o">=</span> <span class="n">meta</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">at_least_ndarray</span><span class="p">(</span><span class="n">cs</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">StageMeta</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;meta&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">))</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">StageMeta</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s1">&#39;cs&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">dct</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_to_json_dict</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;meta&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;cs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">at_least_numpydata</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cs</span><span class="p">)</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dct</span></div>
+
+
+<div class="viewcode-block" id="CalibrationSet"><a class="viewcode-back" href="../../gen.html#calib.gen.CalibrationSet">[docs]</a><span class="k">class</span> <span class="nc">CalibrationSet</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents a number of configuration and inputs pairs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">meta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delta-sigma metadata</span>
+
+<span class="sd">        :type: :class:`StageMeta`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configurations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">meta</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_conf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of configuration-input pairs</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_configurations</span><span class="p">))</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">inputs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stage input generators</span>
+
+<span class="sd">        :type: :class:`InputGenerator`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span>
+        <span class="k">return</span> <span class="n">inputs</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_conf</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">inputs</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">configurations</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Stage configurations</span>
+
+<span class="sd">        :type: :class:`Configuration`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">conf</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configurations</span>
+        <span class="k">return</span> <span class="n">conf</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_conf</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">conf</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">conf</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_cs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of feedfoward capacitors in all configurations and inputs.</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configurations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">n_cs</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_cf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of feedback capacitors in all configurations and inputs.</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configurations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">n_cf</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cs</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Indexes of the feedfoward capacitors. The output shape is</span>
+<span class="sd">            (n_conf, n_cs, n_diff,).</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">conf</span><span class="o">.</span><span class="n">cs</span> <span class="k">for</span> <span class="n">conf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">configurations</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Indexes of the feedback capacitors. The output shape is</span>
+<span class="sd">            (n_conf, n_cf, n_diff,).</span>
+
+<span class="sd">        :type: :class:`numpy.ndarray`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">conf</span><span class="o">.</span><span class="n">cf</span> <span class="k">for</span> <span class="n">conf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">configurations</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ds_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of samples each configuration is operated.</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ds_samples</span>
+
+    <span class="c1"># shape of ref: (n_samples, n_conf, n_cs)</span>
+    <span class="c1"># shape of in: (n_samples, n_conf, n_cs)</span>
+<div class="viewcode-block" id="CalibrationSet.generate_in"><a class="viewcode-back" href="../../gen.html#calib.gen.CalibrationSet.generate_in">[docs]</a>    <span class="k">def</span> <span class="nf">generate_in</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_samples</span><span class="p">,</span> <span class="n">start_sample</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The result of generating all the inputs. The output shape is</span>
+<span class="sd">        (n_samples, n_conf, n_cs,)</span>
+
+<span class="sd">        :param n_samples: Number of clock cycles to generate.</span>
+<span class="sd">        :type n_samples: :class:`int`</span>
+<span class="sd">        :param n_samples: Number of clock cycles to skip before generating.</span>
+<span class="sd">        :type n_samples: :class:`int`</span>
+<span class="sd">        :returns: The references and input indexes, in that order, that</span>
+<span class="sd">            generate the delta-sigma input.</span>
+<span class="sd">        :rtype: (:class:`numpy.array`, :class:`numpy.array`,)</span>
+
+<span class="sd">        .. seealso :: :func:`InputGenerator.generate_in`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">refs_ins</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">input</span><span class="o">.</span><span class="n">generate_in</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">start_sample</span><span class="p">)</span> <span class="k">for</span> <span class="nb">input</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">refs</span><span class="p">,</span> <span class="n">ins</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">refs_ins</span><span class="p">))</span>
+
+        <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">refs</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">ins</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+        <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">refs</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,))</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="n">axes</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,))</span>
+
+        <span class="k">return</span> <span class="n">refs</span><span class="p">,</span> <span class="n">ins</span></div>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ds_samples</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">configurations</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">configurations</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">configurations</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">configurations</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">ds_samples</span> <span class="o">&gt;</span> <span class="mi">0</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">InputGenerator</span><span class="p">)</span><span class="o">.</span><span class="n">EnsureIsInstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_configurations</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">Configuration</span><span class="p">)</span><span class="o">.</span><span class="n">EnsureIsInstance</span><span class="p">(</span><span class="n">configurations</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ds_samples</span> <span class="o">=</span> <span class="n">ds_samples</span>
+
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">c_</span><span class="o">.</span><span class="n">n_cs</span> <span class="o">==</span> <span class="n">i_</span><span class="o">.</span><span class="n">n_cs</span> <span class="k">for</span> <span class="n">c_</span><span class="p">,</span> <span class="n">i_</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">configurations</span><span class="p">,</span> <span class="n">inputs</span><span class="p">))</span>
+
+        <span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_meta</span>
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">c_</span><span class="o">.</span><span class="n">meta</span> <span class="o">==</span> <span class="n">meta</span> <span class="ow">and</span> <span class="n">i_</span><span class="o">.</span><span class="n">meta</span> <span class="o">==</span> <span class="n">meta</span>
+            <span class="k">for</span> <span class="n">c_</span><span class="p">,</span> <span class="n">i_</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">configurations</span><span class="p">,</span> <span class="n">inputs</span><span class="p">))</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">InputGenerator</span><span class="p">)</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;inputs&quot;</span><span class="p">],</span> <span class="n">cache</span><span class="p">))</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">Configuration</span><span class="p">)</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;configurations&quot;</span><span class="p">],</span> <span class="n">cache</span><span class="p">))</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dct</span><span class="p">[</span><span class="s2">&quot;ds_samples&quot;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">dct</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_to_json_dict</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;inputs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inputs</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;configurations&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_configurations</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;ds_samples&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ds_samples</span>
+
+        <span class="k">return</span> <span class="n">dct</span></div>
+
+
+<div class="viewcode-block" id="CalibrationSequence"><a class="viewcode-back" href="../../gen.html#calib.gen.CalibrationSequence">[docs]</a><span class="k">class</span> <span class="nc">CalibrationSequence</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Represents a series of chained calibration sets preceded by the initial</span>
+<span class="sd">    condition to start the simulation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">meta</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delta-sigma metadata</span>
+
+<span class="sd">        :type: :class:`StageMeta`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibration_sets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">meta</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">calibration_sets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Chained sequence of calibration sets.</span>
+
+<span class="sd">        :type: :class:`Sequence`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibration_sets</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">initial_conditions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        The initial conditions for each calibration set chain.</span>
+
+<span class="sd">        :type: :class:`Sequence`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_conditions</span>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n_conf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Number of configurations for each calibration set.</span>
+
+<span class="sd">        :type: :class:`int`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibration_sets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">n_conf</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">initial_conditions</span><span class="p">,</span> <span class="n">calibration_sets</span><span class="p">,</span> <span class="n">data_location</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">data_location</span><span class="p">)</span>
+
+        <span class="c1"># sets consistency</span>
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">c_set</span><span class="o">.</span><span class="n">meta</span> <span class="o">==</span> <span class="n">calibration_sets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">meta</span> <span class="k">for</span> <span class="n">c_set</span> <span class="ow">in</span> <span class="n">calibration_sets</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">c_set</span><span class="o">.</span><span class="n">ds_samples</span> <span class="o">==</span> <span class="n">calibration_sets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ds_samples</span> <span class="k">for</span> <span class="n">c_set</span> <span class="ow">in</span> <span class="n">calibration_sets</span><span class="p">)</span>
+
+        <span class="c1"># initial condition and sets consistency</span>
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">initial_conditions</span><span class="p">)</span> <span class="o">==</span> <span class="n">c_set</span><span class="o">.</span><span class="n">n_conf</span> <span class="k">for</span> <span class="n">c_set</span> <span class="ow">in</span> <span class="n">calibration_sets</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">i_cond</span><span class="o">.</span><span class="n">meta</span> <span class="o">==</span> <span class="n">conf</span><span class="o">.</span><span class="n">meta</span> <span class="k">for</span> <span class="n">conf</span><span class="p">,</span> <span class="n">i_cond</span> <span class="ow">in</span>
+            <span class="nb">zip</span><span class="p">(</span><span class="n">calibration_sets</span><span class="o">.</span><span class="n">configurations</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">initial_conditions</span><span class="p">))</span>
+
+        <span class="k">assert</span> <span class="nb">all</span><span class="p">(</span><span class="n">i_cond</span><span class="o">.</span><span class="n">n_cf</span> <span class="o">==</span> <span class="n">conf</span><span class="o">.</span><span class="n">n_cf</span> <span class="k">for</span> <span class="n">conf</span><span class="p">,</span> <span class="n">i_cond</span> <span class="ow">in</span>
+            <span class="nb">zip</span><span class="p">(</span><span class="n">calibration_sets</span><span class="o">.</span><span class="n">configurations</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">initial_conditions</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calibration_sets</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">CalibrationSet</span><span class="p">)</span><span class="o">.</span><span class="n">EnsureIsInstance</span><span class="p">(</span><span class="n">calibration_sets</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_initial_conditions</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">InitialCondition</span><span class="p">)</span><span class="o">.</span><span class="n">EnsureIsInstance</span><span class="p">(</span><span class="n">initial_conditions</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">_JsonDictToArgs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_JsonDictToArgs</span><span class="p">(</span><span class="n">data_location</span><span class="p">,</span> <span class="n">dct</span><span class="p">,</span> <span class="n">cache</span><span class="p">)</span>
+        <span class="n">path_context</span> <span class="o">=</span> <span class="n">data_location</span><span class="o">.</span><span class="n">as_path_context</span><span class="p">()</span>
+
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">CalibrationSet</span><span class="p">)</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;initial_conditions&quot;</span><span class="p">],</span> <span class="n">cache</span><span class="p">))</span>
+        <span class="n">args</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">tuple_of</span><span class="p">(</span><span class="n">InitialCondition</span><span class="p">)</span><span class="o">.</span><span class="n">Load</span><span class="p">(</span><span class="n">path_context</span><span class="p">,</span> <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;calibration_sets&quot;</span><span class="p">],</span> <span class="n">cache</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">_to_json_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path_context</span><span class="p">):</span>
+        <span class="n">dct</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_to_json_dict</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;initial_conditions&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initial_conditions</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="n">dct</span><span class="p">[</span><span class="s2">&quot;calibration_sets&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibration_sets</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">path_context</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dct</span></div>
+
+
+<span class="c1"># TODO: simulations, config generators.</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">calib</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../gen.html"><cite>gen</cite> Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simulation.html"><cite>simulation</cite> Module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Juan Andrés Bozzo.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

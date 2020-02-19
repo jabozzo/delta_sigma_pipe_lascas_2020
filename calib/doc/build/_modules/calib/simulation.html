@@ -1,0 +1,264 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>calib.simulation &#8212; calib 0.8 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for calib.simulation</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! usr/bin/env python</span>
+
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">namedtuple</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">numexpr</span> <span class="k">as</span> <span class="nn">ne</span>
+
+<span class="kn">import</span> <span class="nn">calib.data</span> <span class="k">as</span> <span class="nn">data</span>
+
+<span class="kn">from</span> <span class="nn">calib.misc</span> <span class="k">import</span> <span class="n">default</span><span class="p">,</span> <span class="n">store_random_state</span>
+
+
+<span class="c1"># shape (n_conf, n_cs/f, n_diff)</span>
+<span class="c1"># return cf_cs, cs_cf</span>
+<div class="viewcode-block" id="transition_cx_change"><a class="viewcode-back" href="../../simulation.html#calib.simulation.transition_cx_change">[docs]</a><span class="k">def</span> <span class="nf">transition_cx_change</span><span class="p">(</span><span class="n">prev_cs</span><span class="p">,</span> <span class="n">prev_cf</span><span class="p">,</span> <span class="n">next_cs</span><span class="p">,</span> <span class="n">next_cf</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Computes the capacitors that changed from a feedback position to a</span>
+<span class="sd">    feedfoward position, the ones that did the oposite during a</span>
+<span class="sd">    configurarion transition and the ones that kept their positions.</span>
+
+<span class="sd">    :param prev_cs: Feedfoward capacitors indexes of the previous</span>
+<span class="sd">        configuration.</span>
+<span class="sd">    :type prev_cs: :class:`numpy.array`</span>
+<span class="sd">    :param prev_cf: Feedback capacitors indexes of the previous configuration.</span>
+<span class="sd">    :type prev_cf: :class:`numpy.array`</span>
+<span class="sd">    :param next_cs: Feedfoward capacitors indexes of the next configuration.</span>
+<span class="sd">    :type next_cs: :class:`numpy.array`</span>
+<span class="sd">    :param next_cf: Feedback capacitors indexes of the next configuration.</span>
+<span class="sd">    :type next_cf: :class:`numpy.array`</span>
+<span class="sd">    :returns: The indexes of the capacitors that changed from the feedfoward to</span>
+<span class="sd">        feedback position (cs_cf). And the indexes of the capacitors that</span>
+<span class="sd">        changed from the feedfoward to feedback position (cf_cs).</span>
+<span class="sd">    :rtype: (:class:`numpy.ndarray`, :class:`numpy.ndarray`,</span>
+<span class="sd">        :class:`numpy.ndarray`, :class:`numpy.ndarray`,)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cf_cs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">prev_cf</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+    <span class="n">cs_cf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">prev_cs</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">int</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">n_conf</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">cf_cs</span><span class="p">,</span> <span class="mi">0</span><span class="p">)):</span>
+        <span class="k">for</span> <span class="n">n_diff</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">cf_cs</span><span class="p">,</span> <span class="mi">2</span><span class="p">)):</span>
+            <span class="n">intersection</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span>
+                <span class="n">prev_cf</span><span class="p">[</span><span class="n">n_conf</span><span class="p">,</span> <span class="p">:,</span> <span class="n">n_diff</span><span class="p">],</span>
+                <span class="n">next_cs</span><span class="p">[</span><span class="n">n_conf</span><span class="p">,</span> <span class="p">:,</span> <span class="n">n_diff</span><span class="p">])</span>
+
+            <span class="n">inter_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">intersection</span><span class="p">)</span>
+            <span class="n">cf_cs</span><span class="p">[</span><span class="n">n_conf</span><span class="p">,</span> <span class="p">:</span><span class="n">inter_size</span><span class="p">,</span> <span class="n">n_diff</span><span class="p">]</span> <span class="o">=</span> <span class="n">intersection</span>
+
+            <span class="n">intersection</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">intersect1d</span><span class="p">(</span>
+                <span class="n">prev_cs</span><span class="p">[</span><span class="n">n_conf</span><span class="p">,</span> <span class="p">:,</span> <span class="n">n_diff</span><span class="p">],</span>
+                <span class="n">next_cf</span><span class="p">[</span><span class="n">n_conf</span><span class="p">,</span> <span class="p">:,</span> <span class="n">n_diff</span><span class="p">])</span>
+
+            <span class="n">inter_size</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">intersection</span><span class="p">)</span>
+            <span class="n">cs_cf</span><span class="p">[</span><span class="n">n_conf</span><span class="p">,</span> <span class="p">:</span><span class="n">inter_size</span><span class="p">,</span> <span class="n">n_diff</span><span class="p">]</span> <span class="o">=</span> <span class="n">intersection</span>
+
+    <span class="k">return</span> <span class="n">cs_cf</span><span class="p">,</span> <span class="n">cf_cs</span></div>
+
+
+<span class="k">class</span> <span class="nc">Simulator</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">JsonData</span><span class="p">):</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">seed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">cap_snr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cap_snr</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">ref_snr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ref_snr</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">thres_snr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_thres_snr</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">in_snr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_in_snr</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">cap_snr</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ref_snr</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">thres_snr</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">in_snr</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="n">seed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cap_snr</span> <span class="o">=</span> <span class="n">cap_snr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ref_snr</span> <span class="o">=</span> <span class="n">ref_snr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_thres_snr</span> <span class="o">=</span> <span class="n">thres_snr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_in_snr</span> <span class="o">=</span> <span class="n">in_snr</span>
+
+        <span class="k">with</span> <span class="n">store_random_state</span><span class="p">()</span> <span class="k">as</span> <span class="n">_</span><span class="p">:</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_random_state</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">get_state</span><span class="p">()</span>
+
+    <span class="c1"># shape(caps) = base_shape + (n_caps + 1, n_diff,)</span>
+    <span class="c1"># shape(refs) = base_shape + (n_caps + 1, n_refs + 1, n_diff,)</span>
+    <span class="c1"># shape(ins) = base_shape + (n_ins, n_diff,)</span>
+    <span class="k">def</span> <span class="nf">_simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loss</span><span class="p">,</span> <span class="n">caps</span><span class="p">,</span> <span class="n">refs</span><span class="p">,</span> <span class="n">ins</span><span class="p">,</span> <span class="n">calibration_sequence</span><span class="p">):</span>
+        <span class="n">base_shape</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+        <span class="n">base_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">base_shape</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">caps</span><span class="p">))</span> <span class="o">==</span> <span class="n">base_len</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;Expected 2 extra dimensions.&quot;</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">refs</span><span class="p">))</span> <span class="o">==</span> <span class="n">base_len</span> <span class="o">+</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;Expected 3 extra dimensions.&quot;</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">ins</span><span class="p">))</span> <span class="o">==</span> <span class="n">base_len</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;Expected 2 extra dimensions.&quot;</span>
+
+        <span class="n">meta</span> <span class="o">=</span> <span class="n">calibration_sequence</span><span class="o">.</span><span class="n">meta</span>
+
+        <span class="n">n_diff</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="n">meta</span><span class="o">.</span><span class="n">differential</span><span class="p">)</span>
+        <span class="n">n_conf</span> <span class="o">=</span> <span class="n">calibration_sequence</span><span class="o">.</span><span class="n">n_conf</span>
+
+        <span class="k">assert</span> <span class="n">n_diff</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">caps</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;Inconsistent data with meta.&quot;</span>
+        <span class="k">assert</span> <span class="n">n_diff</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">refs</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;Inconsistent data with meta.&quot;</span>
+        <span class="k">assert</span> <span class="n">n_diff</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">ins</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;Inconsistent data with meta.&quot;</span>
+
+        <span class="n">n_caps</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">n_caps</span>
+        <span class="n">n_refs</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">n_refs</span>
+        <span class="n">n_ins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">refs</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">assert</span> <span class="n">n_caps</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">caps</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">),</span> <span class="s2">&quot;Inconsistent data with meta.&quot;</span>
+        <span class="k">assert</span> <span class="n">n_refs</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">refs</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">),</span> <span class="s2">&quot;Inconsistent data with meta.&quot;</span>
+        <span class="k">assert</span> <span class="n">n_caps</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="n">refs</span><span class="p">,</span> <span class="o">-</span><span class="mi">3</span><span class="p">),</span> <span class="s2">&quot;Inconsistent data with meta.&quot;</span>
+
+        <span class="c1"># Create extended versions</span>
+        <span class="n">zl</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span>
+        <span class="n">ins</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">ins</span><span class="p">,</span> <span class="n">zl</span><span class="p">(</span><span class="n">ins</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]),),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">caps</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">caps</span><span class="p">,</span> <span class="n">zl</span><span class="p">(</span><span class="n">caps</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]),),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">refs</span><span class="p">,</span> <span class="n">zl</span><span class="p">(</span><span class="n">refs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]),),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">refs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">refs</span><span class="p">,</span> <span class="n">zl</span><span class="p">(</span><span class="n">refs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]),),</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="n">ic</span> <span class="o">=</span> <span class="n">calibration_sequence</span><span class="o">.</span><span class="n">initial_conditions</span>
+
+        <span class="k">def</span> <span class="nf">ogrid</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">length</span><span class="p">,</span> <span class="n">tot_len</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="n">tot_len</span> <span class="o">=</span> <span class="n">default</span><span class="p">(</span><span class="n">tot_len</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="n">tot_len</span> <span class="o">&gt;=</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span><span class="o">*</span><span class="p">(</span><span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">length</span><span class="p">,)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span><span class="o">*</span><span class="p">(</span><span class="n">tot_len</span> <span class="o">-</span> <span class="n">idx</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">length</span><span class="p">)),</span> <span class="n">shape</span><span class="p">)</span>
+
+        <span class="n">ic_ii</span> <span class="o">=</span> <span class="n">ic</span><span class="o">.</span><span class="n">ref_ii</span> <span class="c1"># shape (n_cf, n_diff,)</span>
+        <span class="c1"># shape (1, n_cf, n_diff,)</span>
+        <span class="n">ic_ii</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">ic_ii</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">+</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">ic_ii</span><span class="p">))</span>
+
+        <span class="c1"># shape (n_conf, n_cs, n_diff,)</span>
+        <span class="n">conf_cs_ii</span> <span class="o">=</span> <span class="n">calibration_sequence</span><span class="o">.</span><span class="n">calibration_sets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cs</span>
+        <span class="c1"># shape (n_conf, n_cf, n_diff,)</span>
+        <span class="n">conf_cf_ii</span> <span class="o">=</span> <span class="n">calibration_sequence</span><span class="o">.</span><span class="n">calibration_sets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">cf</span>
+
+        <span class="c1"># shape (..., n_conf, n_diff,)</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">base_shape</span> <span class="o">+</span> <span class="p">(</span><span class="n">n_conf</span><span class="p">,</span> <span class="n">n_diff</span><span class="p">,))</span>
+        <span class="n">u</span> <span class="o">+=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">refs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">conf_cs_ii</span><span class="p">,</span> <span class="n">ic_ii</span><span class="p">,</span> <span class="n">ogrid</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">)],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">ii_set</span><span class="p">,</span> <span class="n">c_set</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">calibration_sequence</span><span class="o">.</span><span class="n">calibration_sets</span><span class="p">):</span>
+            <span class="k">pass</span>
+
+
+
+
+
+
+
+
+
+<span class="c1"># TODO</span>
+<span class="n">IndexCache</span> <span class="o">=</span> <span class="n">namedtuple</span><span class="p">(</span><span class="s2">&quot;IndexCache&quot;</span><span class="p">,</span> <span class="p">(</span><span class="s1">&#39;ic&#39;</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">,))</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Stores all the pre-computed indexes to simulate.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">calib</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../gen.html"><cite>gen</cite> Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../simulation.html"><cite>simulation</cite> Module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Juan Andrés Bozzo.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

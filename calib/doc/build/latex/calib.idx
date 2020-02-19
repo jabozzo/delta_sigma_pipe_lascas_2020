@@ -1,0 +1,36 @@
+\indexentry{calib.gen (module)@\spxentry{calib.gen}\spxextra{module}|hyperpage}{1}
+\indexentry{PipeParameters (class in calib.gen)@\spxentry{PipeParameters}\spxextra{class in calib.gen}|hyperpage}{1}
+\indexentry{stages() (calib.gen.PipeParameters property)@\spxentry{stages()}\spxextra{calib.gen.PipeParameters property}|hyperpage}{1}
+\indexentry{tail() (calib.gen.PipeParameters property)@\spxentry{tail()}\spxextra{calib.gen.PipeParameters property}|hyperpage}{1}
+\indexentry{StageMeta (class in calib.gen)@\spxentry{StageMeta}\spxextra{class in calib.gen}|hyperpage}{1}
+\indexentry{cap() (calib.gen.StageMeta property)@\spxentry{cap()}\spxextra{calib.gen.StageMeta property}|hyperpage}{1}
+\indexentry{differential() (calib.gen.StageMeta property)@\spxentry{differential()}\spxextra{calib.gen.StageMeta property}|hyperpage}{1}
+\indexentry{eff() (calib.gen.StageMeta property)@\spxentry{eff()}\spxextra{calib.gen.StageMeta property}|hyperpage}{1}
+\indexentry{fsr() (calib.gen.StageMeta property)@\spxentry{fsr()}\spxextra{calib.gen.StageMeta property}|hyperpage}{1}
+\indexentry{generate\_gaussian() (calib.gen.StageMeta method)@\spxentry{generate\_gaussian()}\spxextra{calib.gen.StageMeta method}|hyperpage}{1}
+\indexentry{generate\_ideal() (calib.gen.StageMeta method)@\spxentry{generate\_ideal()}\spxextra{calib.gen.StageMeta method}|hyperpage}{2}
+\indexentry{half\_bit() (calib.gen.StageMeta property)@\spxentry{half\_bit()}\spxextra{calib.gen.StageMeta property}|hyperpage}{2}
+\indexentry{lsb() (calib.gen.StageMeta property)@\spxentry{lsb()}\spxextra{calib.gen.StageMeta property}|hyperpage}{2}
+\indexentry{n\_bits() (calib.gen.StageMeta property)@\spxentry{n\_bits()}\spxextra{calib.gen.StageMeta property}|hyperpage}{2}
+\indexentry{n\_caps() (calib.gen.StageMeta property)@\spxentry{n\_caps()}\spxextra{calib.gen.StageMeta property}|hyperpage}{2}
+\indexentry{n\_codes() (calib.gen.StageMeta property)@\spxentry{n\_codes()}\spxextra{calib.gen.StageMeta property}|hyperpage}{2}
+\indexentry{n\_refs() (calib.gen.StageMeta property)@\spxentry{n\_refs()}\spxextra{calib.gen.StageMeta property}|hyperpage}{2}
+\indexentry{seed() (calib.gen.StageMeta property)@\spxentry{seed()}\spxextra{calib.gen.StageMeta property}|hyperpage}{2}
+\indexentry{StageParameters (class in calib.gen)@\spxentry{StageParameters}\spxextra{class in calib.gen}|hyperpage}{2}
+\indexentry{caps() (calib.gen.StageParameters property)@\spxentry{caps()}\spxextra{calib.gen.StageParameters property}|hyperpage}{2}
+\indexentry{caps\_ext() (calib.gen.StageParameters property)@\spxentry{caps\_ext()}\spxextra{calib.gen.StageParameters property}|hyperpage}{2}
+\indexentry{eff() (calib.gen.StageParameters property)@\spxentry{eff()}\spxextra{calib.gen.StageParameters property}|hyperpage}{2}
+\indexentry{meta() (calib.gen.StageParameters property)@\spxentry{meta()}\spxextra{calib.gen.StageParameters property}|hyperpage}{2}
+\indexentry{refs() (calib.gen.StageParameters property)@\spxentry{refs()}\spxextra{calib.gen.StageParameters property}|hyperpage}{3}
+\indexentry{refs\_ext() (calib.gen.StageParameters property)@\spxentry{refs\_ext()}\spxextra{calib.gen.StageParameters property}|hyperpage}{3}
+\indexentry{thres() (calib.gen.StageParameters property)@\spxentry{thres()}\spxextra{calib.gen.StageParameters property}|hyperpage}{3}
+\indexentry{adjust\_map() (in module calib.gen)@\spxentry{adjust\_map()}\spxextra{in module calib.gen}|hyperpage}{3}
+\indexentry{compute\_lsb() (in module calib.gen)@\spxentry{compute\_lsb()}\spxextra{in module calib.gen}|hyperpage}{3}
+\indexentry{compute\_n\_caps() (in module calib.gen)@\spxentry{compute\_n\_caps()}\spxextra{in module calib.gen}|hyperpage}{3}
+\indexentry{compute\_n\_codes() (in module calib.gen)@\spxentry{compute\_n\_codes()}\spxextra{in module calib.gen}|hyperpage}{4}
+\indexentry{compute\_ref() (in module calib.gen)@\spxentry{compute\_ref()}\spxextra{in module calib.gen}|hyperpage}{4}
+\indexentry{compute\_thres() (in module calib.gen)@\spxentry{compute\_thres()}\spxextra{in module calib.gen}|hyperpage}{4}
+\indexentry{eff\_random() (in module calib.gen)@\spxentry{eff\_random()}\spxextra{in module calib.gen}|hyperpage}{5}
+\indexentry{format\_bits() (in module calib.gen)@\spxentry{format\_bits()}\spxextra{in module calib.gen}|hyperpage}{5}
+\indexentry{parse\_bits() (in module calib.gen)@\spxentry{parse\_bits()}\spxextra{in module calib.gen}|hyperpage}{5}
+\indexentry{pipe\_map() (in module calib.gen)@\spxentry{pipe\_map()}\spxextra{in module calib.gen}|hyperpage}{5}

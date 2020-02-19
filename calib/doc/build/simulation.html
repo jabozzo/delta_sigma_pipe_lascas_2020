@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>simulation Module &#8212; calib 0.8 documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="gen Module" href="gen.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="simulation-module">
+<h1><cite>simulation</cite> Module<a class="headerlink" href="#simulation-module" title="Permalink to this headline">¶</a></h1>
+<p>This module contain classes and functions for simulating the converter.</p>
+<span class="target" id="module-calib.simulation"></span><dl class="class">
+<dt id="calib.simulation.IndexCache">
+<em class="property">class </em><code class="sig-prename descclassname">calib.simulation.</code><code class="sig-name descname">IndexCache</code><span class="sig-paren">(</span><em class="sig-param">ic</em>, <em class="sig-param">a</em>, <em class="sig-param">b</em><span class="sig-paren">)</span><a class="headerlink" href="#calib.simulation.IndexCache" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stores all the pre-computed indexes to simulate.</p>
+<dl class="method">
+<dt id="calib.simulation.IndexCache.a">
+<em class="property">property </em><code class="sig-name descname">a</code><a class="headerlink" href="#calib.simulation.IndexCache.a" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="calib.simulation.IndexCache.b">
+<em class="property">property </em><code class="sig-name descname">b</code><a class="headerlink" href="#calib.simulation.IndexCache.b" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="calib.simulation.IndexCache.ic">
+<em class="property">property </em><code class="sig-name descname">ic</code><a class="headerlink" href="#calib.simulation.IndexCache.ic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="calib.simulation.transition_cx_change">
+<code class="sig-prename descclassname">calib.simulation.</code><code class="sig-name descname">transition_cx_change</code><span class="sig-paren">(</span><em class="sig-param">prev_cs</em>, <em class="sig-param">prev_cf</em>, <em class="sig-param">next_cs</em>, <em class="sig-param">next_cf</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/calib/simulation.html#transition_cx_change"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#calib.simulation.transition_cx_change" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the capacitors that changed from a feedback position to a
+feedfoward position, the ones that did the oposite during a
+configurarion transition and the ones that kept their positions.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>prev_cs</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.array</span></code>) – Feedfoward capacitors indexes of the previous
+configuration.</p></li>
+<li><p><strong>prev_cf</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.array</span></code>) – Feedback capacitors indexes of the previous configuration.</p></li>
+<li><p><strong>next_cs</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.array</span></code>) – Feedfoward capacitors indexes of the next configuration.</p></li>
+<li><p><strong>next_cf</strong> (<code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.array</span></code>) – Feedback capacitors indexes of the next configuration.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>The indexes of the capacitors that changed from the feedfoward to
+feedback position (cs_cf). And the indexes of the capacitors that
+changed from the feedfoward to feedback position (cf_cs).</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(<code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code>,
+<code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code>,)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">calib</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="gen.html"><cite>gen</cite> Module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#"><cite>simulation</cite> Module</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="gen.html" title="previous chapter"><cite>gen</cite> Module</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Juan Andrés Bozzo.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/simulation.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

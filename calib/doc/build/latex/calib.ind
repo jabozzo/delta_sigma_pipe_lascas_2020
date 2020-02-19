@@ -1,0 +1,84 @@
+\begin{sphinxtheindex}
+\let\bigletter\sphinxstyleindexlettergroup
+\let\spxpagem \sphinxstyleindexpagemain
+\let\spxentry \sphinxstyleindexentry
+\let\spxextra \sphinxstyleindexextra
+
+  \bigletter A
+  \item \spxentry{adjust\_map()}\spxextra{in module calib.gen}, \hyperpage{3}
+
+  \indexspace
+  \bigletter C
+  \item \spxentry{calib.gen}\spxextra{module}, \hyperpage{1}
+  \item \spxentry{cap()}\spxextra{calib.gen.StageMeta property}, \hyperpage{1}
+  \item \spxentry{caps()}\spxextra{calib.gen.StageParameters property}, \hyperpage{2}
+  \item \spxentry{caps\_ext()}\spxextra{calib.gen.StageParameters property}, \hyperpage{2}
+  \item \spxentry{compute\_lsb()}\spxextra{in module calib.gen}, \hyperpage{3}
+  \item \spxentry{compute\_n\_caps()}\spxextra{in module calib.gen}, \hyperpage{3}
+  \item \spxentry{compute\_n\_codes()}\spxextra{in module calib.gen}, \hyperpage{4}
+  \item \spxentry{compute\_ref()}\spxextra{in module calib.gen}, \hyperpage{4}
+  \item \spxentry{compute\_thres()}\spxextra{in module calib.gen}, \hyperpage{4}
+
+  \indexspace
+  \bigletter D
+  \item \spxentry{differential()}\spxextra{calib.gen.StageMeta property}, \hyperpage{1}
+
+  \indexspace
+  \bigletter E
+  \item \spxentry{eff()}\spxextra{calib.gen.StageMeta property}, \hyperpage{1}
+  \item \spxentry{eff()}\spxextra{calib.gen.StageParameters property}, \hyperpage{2}
+  \item \spxentry{eff\_random()}\spxextra{in module calib.gen}, \hyperpage{5}
+
+  \indexspace
+  \bigletter F
+  \item \spxentry{format\_bits()}\spxextra{in module calib.gen}, \hyperpage{5}
+  \item \spxentry{fsr()}\spxextra{calib.gen.StageMeta property}, \hyperpage{1}
+
+  \indexspace
+  \bigletter G
+  \item \spxentry{generate\_gaussian()}\spxextra{calib.gen.StageMeta method}, \hyperpage{1}
+  \item \spxentry{generate\_ideal()}\spxextra{calib.gen.StageMeta method}, \hyperpage{2}
+
+  \indexspace
+  \bigletter H
+  \item \spxentry{half\_bit()}\spxextra{calib.gen.StageMeta property}, \hyperpage{2}
+
+  \indexspace
+  \bigletter L
+  \item \spxentry{lsb()}\spxextra{calib.gen.StageMeta property}, \hyperpage{2}
+
+  \indexspace
+  \bigletter M
+  \item \spxentry{meta()}\spxextra{calib.gen.StageParameters property}, \hyperpage{2}
+
+  \indexspace
+  \bigletter N
+  \item \spxentry{n\_bits()}\spxextra{calib.gen.StageMeta property}, \hyperpage{2}
+  \item \spxentry{n\_caps()}\spxextra{calib.gen.StageMeta property}, \hyperpage{2}
+  \item \spxentry{n\_codes()}\spxextra{calib.gen.StageMeta property}, \hyperpage{2}
+  \item \spxentry{n\_refs()}\spxextra{calib.gen.StageMeta property}, \hyperpage{2}
+
+  \indexspace
+  \bigletter P
+  \item \spxentry{parse\_bits()}\spxextra{in module calib.gen}, \hyperpage{5}
+  \item \spxentry{pipe\_map()}\spxextra{in module calib.gen}, \hyperpage{5}
+  \item \spxentry{PipeParameters}\spxextra{class in calib.gen}, \hyperpage{1}
+
+  \indexspace
+  \bigletter R
+  \item \spxentry{refs()}\spxextra{calib.gen.StageParameters property}, \hyperpage{3}
+  \item \spxentry{refs\_ext()}\spxextra{calib.gen.StageParameters property}, \hyperpage{3}
+
+  \indexspace
+  \bigletter S
+  \item \spxentry{seed()}\spxextra{calib.gen.StageMeta property}, \hyperpage{2}
+  \item \spxentry{StageMeta}\spxextra{class in calib.gen}, \hyperpage{1}
+  \item \spxentry{StageParameters}\spxextra{class in calib.gen}, \hyperpage{2}
+  \item \spxentry{stages()}\spxextra{calib.gen.PipeParameters property}, \hyperpage{1}
+
+  \indexspace
+  \bigletter T
+  \item \spxentry{tail()}\spxextra{calib.gen.PipeParameters property}, \hyperpage{1}
+  \item \spxentry{thres()}\spxextra{calib.gen.StageParameters property}, \hyperpage{3}
+
+\end{sphinxtheindex}
